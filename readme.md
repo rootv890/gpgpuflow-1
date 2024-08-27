@@ -1,16 +1,12 @@
-# Three.js Journey
+# Theory!
 
-## Setup
-Download [Node.js](https://nodejs.org/en/download/).
-Run this followed commands:
+GPGPU vs FlowField
 
-``` bash
-# Install dependencies (only the first time)
-npm install
+GPGPU -- General Purpose Graphics Processing Unit FlowField -- A field of
+vectors that can be used to simulate fluid flow or other vector fields.
 
-# Run the local server at localhost:8080
-npm run dev
+GPGPU is a technique that uses the GPU to perform general purpose computations
+and flowfield is a technique that uses a field of vectors to simulate fluid flow
+or other vector fields.
 
-# Build for production in the dist/ directory
-npm run build
-```
+Persitance

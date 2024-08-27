@@ -13,6 +13,8 @@ import gpgpuParticlesShader from './shaders/gpgpu/particles.glsl';
  */
 // Debug
 const gui = new GUI({ width: 340 });
+// close by default
+// gui.close();
 const debugObject = {};
 
 // Canvas
@@ -89,12 +91,19 @@ debugObject.clearColor = '#1f1f1f';
 renderer.setClearColor(debugObject.clearColor);
 
 /**
+ * ^ Load Model
+ **/
+
+const gltf = await gltfLoader.loadAsync('./model.glb');
+
+/**
  * Base Geometry
  **/
 
 const baseGeometry = {};
-baseGeometry.instance = new THREE.SphereGeometry(3);
+baseGeometry.instance = gltf.scene.children[0].geometry;
 baseGeometry.count = baseGeometry.instance.attributes.position.count;
+console.log(baseGeometry.instance.attributes.color);
 
 /**
  * GPU Compute
@@ -132,7 +141,7 @@ for (let i = 0; i < baseGeometry.count; i++) {
 	baseParticlesTexture.image.data[i4 + 2] =
 		baseGeometry.instance.attributes.position.array[i3 + 2];
 
-	baseParticlesTexture.image.data[i4 + 3] = 0; //alpha
+	baseParticlesTexture.image.data[i4 + 3] = Math.random(); //alpha
 }
 
 // Particles Variable
@@ -142,11 +151,26 @@ GPGPU.particlesVariable = GPGPU.computation.addVariable(
 	baseParticlesTexture, // Texture to be used
 );
 
+console.log(GPGPU.particlesVariable.material);
+
 GPGPU.computation.setVariableDependencies(
 	GPGPU.particlesVariable,
 	/* Dependencies */
 	[GPGPU.particlesVariable],
 ); //self-dependency
+
+// Uniforms
+GPGPU.particlesVariable.material.uniforms.uTime = new THREE.Uniform(0);
+GPGPU.particlesVariable.material.uniforms.uDeltaTime = new THREE.Uniform(0);
+GPGPU.particlesVariable.material.uniforms.uBase = new THREE.Uniform(
+	baseParticlesTexture,
+);
+GPGPU.particlesVariable.material.uniforms.uFlowFlieldInfluence =
+	new THREE.Uniform(0.5);
+GPGPU.particlesVariable.material.uniforms.uFlowFlieldStrength =
+	new THREE.Uniform(2);
+GPGPU.particlesVariable.material.uniforms.uFlowFlieldFrequency =
+	new THREE.Uniform(0.5);
 
 // init
 GPGPU.computation.init();
@@ -163,7 +187,7 @@ GPGPU.debug = new THREE.Mesh(
 
 GPGPU.debug.position.x = 5;
 GPGPU.debug.position.y = 2;
-scene.add(GPGPU.debug);
+// scene.add(GPGPU.debug);
 
 /**
  * Particles
@@ -173,16 +197,21 @@ const particles = {};
 // Geometry
 
 const particlesUvArray = new Float32Array(baseGeometry.count * 2);
+const sizesArray = new Float32Array(baseGeometry.count);
 
 for (let y = 0; y < GPGPU.size; y++) {
 	for (let x = 0; x < GPGPU.size; x++) {
 		const i = y * GPGPU.size + x;
 		const i2 = i * 2;
+
+		// Particles UV
 		const uvX = (x + 0.5) / GPGPU.size;
 		const uvY = (y + 0.5) / GPGPU.size;
-
 		particlesUvArray[i2 + 0] = uvX;
 		particlesUvArray[i2 + 1] = uvY;
+
+		// Size
+		sizesArray[i] = Math.random();
 	}
 }
 
@@ -194,13 +223,21 @@ particles.geometry.setAttribute(
 	'aParticlesUv',
 	new THREE.BufferAttribute(particlesUvArray, 2),
 );
+particles.geometry.setAttribute(
+	'aColor',
+	baseGeometry.instance.attributes.color,
+);
+particles.geometry.setAttribute(
+	'aSize',
+	new THREE.BufferAttribute(sizesArray, 1),
+);
 
 // Material
 particles.material = new THREE.ShaderMaterial({
 	vertexShader: particlesVertexShader,
 	fragmentShader: particlesFragmentShader,
 	uniforms: {
-		uSize: new THREE.Uniform(0.4),
+		uSize: new THREE.Uniform(0.07),
 		uResolution: new THREE.Uniform(
 			new THREE.Vector2(
 				sizes.width * sizes.pixelRatio,
@@ -228,6 +265,27 @@ gui
 	.step(0.001)
 	.name('uSize');
 
+gui
+	.add(GPGPU.particlesVariable.material.uniforms.uFlowFlieldInfluence, 'value')
+	.min(0)
+	.max(1)
+	.step(0.001)
+	.name('FlowFlieldInfluence');
+
+gui
+	.add(GPGPU.particlesVariable.material.uniforms.uFlowFlieldStrength, 'value')
+	.min(0)
+	.max(10)
+	.step(0.1)
+	.name('FlowFlieldStrength');
+
+gui
+	.add(GPGPU.particlesVariable.material.uniforms.uFlowFlieldFrequency, 'value')
+	.min(0)
+	.max(1)
+	.step(0.001)
+	.name('FlowFlieldFrequency');
+
 /**
  * Animate
  */
@@ -236,11 +294,17 @@ let previousTime = 0;
 
 const tick = () => {
 	const elapsedTime = clock.getElapsedTime();
+	// const deltaTime = Math.min(elapsedTime - previousTime, 1 / 30);
 	const deltaTime = elapsedTime - previousTime;
+
 	previousTime = elapsedTime;
 
 	// Update controls
 	controls.update();
+
+	// Update Time
+	GPGPU.particlesVariable.material.uniforms.uTime.value = elapsedTime;
+	GPGPU.particlesVariable.material.uniforms.uDeltaTime.value = deltaTime;
 
 	// Update GPU Compute
 	GPGPU.computation.compute();

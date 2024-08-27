@@ -5,6 +5,8 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import GUI from 'lil-gui';
 import particlesVertexShader from './shaders/particles/vertex.glsl';
 import particlesFragmentShader from './shaders/particles/fragment.glsl';
+import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
+import gpgpuParticlesShader from './shaders/gpgpu/particles.glsl';
 
 /**
  * Base
@@ -83,8 +85,84 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(sizes.pixelRatio);
 
-debugObject.clearColor = '#29191f';
+debugObject.clearColor = '#1f1f1f';
 renderer.setClearColor(debugObject.clearColor);
+
+/**
+ * Base Geometry
+ **/
+
+const baseGeometry = {};
+baseGeometry.instance = new THREE.SphereGeometry(3);
+baseGeometry.count = baseGeometry.instance.attributes.position.count;
+
+/**
+ * GPU Compute
+ **/
+
+const GPGPU = {};
+
+GPGPU.size = Math.ceil(Math.sqrt(baseGeometry.count)); //For FBO // 24
+GPGPU.computation = new GPUComputationRenderer(
+	GPGPU.size,
+	GPGPU.size,
+	renderer,
+);
+
+// Each data type handeled in computationRenderer is called a //^'variable'
+
+// Base Particles
+const baseParticlesTexture = GPGPU.computation.createTexture(); // creates texture for use in computation
+
+// Fill  Particles
+
+for (let i = 0; i < baseGeometry.count; i++) {
+	// positions
+	// baseGeometry.instance.attributes.position.
+	const i3 = i * 3;
+	const i4 = i * 4;
+
+	// Positions base don geoemetry
+	baseParticlesTexture.image.data[i4 + 0] =
+		baseGeometry.instance.attributes.position.array[i3 + 0];
+
+	baseParticlesTexture.image.data[i4 + 1] =
+		baseGeometry.instance.attributes.position.array[i3 + 1];
+
+	baseParticlesTexture.image.data[i4 + 2] =
+		baseGeometry.instance.attributes.position.array[i3 + 2];
+
+	baseParticlesTexture.image.data[i4 + 3] = 0; //alpha
+}
+
+// Particles Variable
+GPGPU.particlesVariable = GPGPU.computation.addVariable(
+	'uParticles', // Name of the variable
+	gpgpuParticlesShader, // Shader to be used
+	baseParticlesTexture, // Texture to be used
+);
+
+GPGPU.computation.setVariableDependencies(
+	GPGPU.particlesVariable,
+	/* Dependencies */
+	[GPGPU.particlesVariable],
+); //self-dependency
+
+// init
+GPGPU.computation.init();
+
+// Debug
+GPGPU.debug = new THREE.Mesh(
+	// new THREE.PlaneGeometry(3, 3),
+	baseGeometry.instance,
+	new THREE.MeshBasicMaterial({
+		map: GPGPU.computation.getCurrentRenderTarget(GPGPU.particlesVariable)
+			.texture,
+	}),
+);
+
+GPGPU.debug.position.x = 3;
+scene.add(GPGPU.debug);
 
 /**
  * Particles
@@ -92,7 +170,6 @@ renderer.setClearColor(debugObject.clearColor);
 const particles = {};
 
 // Geometry
-particles.geometry = new THREE.SphereGeometry(3);
 
 // Material
 particles.material = new THREE.ShaderMaterial({
@@ -110,7 +187,7 @@ particles.material = new THREE.ShaderMaterial({
 });
 
 // Points
-particles.points = new THREE.Points(particles.geometry, particles.material);
+particles.points = new THREE.Points(baseGeometry.instance, particles.material);
 scene.add(particles.points);
 
 /**
@@ -140,6 +217,9 @@ const tick = () => {
 	// Update controls
 	controls.update();
 
+	// Update GPU Compute
+	GPGPU.computation.compute();
+
 	// Render normal scene
 	renderer.render(scene, camera);
 
@@ -147,8 +227,4 @@ const tick = () => {
 	window.requestAnimationFrame(tick);
 };
 
-// THIS FOR COMMIT C
-// THIS FOR COMMIT D
-// THIS FOR COMMIT E
-// THIS FOR COMMIT F
 tick();

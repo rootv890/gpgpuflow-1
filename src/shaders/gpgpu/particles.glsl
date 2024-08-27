@@ -7,6 +7,8 @@ void main()
   // gl_FragColor =  vec4( uv
   //   , 1.0,1.0);
   particle.y+=.01; // incrmenting green channel
+  particle.x+=.05; // incrmenting green channel
+  particle.z+=.08; // incrmenting green channel
   gl_FragColor =  particle;
 
 }

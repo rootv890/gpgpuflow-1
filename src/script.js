@@ -161,7 +161,8 @@ GPGPU.debug = new THREE.Mesh(
 	}),
 );
 
-GPGPU.debug.position.x = 3;
+GPGPU.debug.position.x = 5;
+GPGPU.debug.position.y = 2;
 scene.add(GPGPU.debug);
 
 /**
@@ -170,6 +171,29 @@ scene.add(GPGPU.debug);
 const particles = {};
 
 // Geometry
+
+const particlesUvArray = new Float32Array(baseGeometry.count * 2);
+
+for (let y = 0; y < GPGPU.size; y++) {
+	for (let x = 0; x < GPGPU.size; x++) {
+		const i = y * GPGPU.size + x;
+		const i2 = i * 2;
+		const uvX = (x + 0.5) / GPGPU.size;
+		const uvY = (y + 0.5) / GPGPU.size;
+
+		particlesUvArray[i2 + 0] = uvX;
+		particlesUvArray[i2 + 1] = uvY;
+	}
+}
+
+// console.log(particlesUvArray);
+
+particles.geometry = new THREE.BufferGeometry();
+particles.geometry.setDrawRange(0, baseGeometry.count); //TODO Change the range for experimentation later
+particles.geometry.setAttribute(
+	'aParticlesUv',
+	new THREE.BufferAttribute(particlesUvArray, 2),
+);
 
 // Material
 particles.material = new THREE.ShaderMaterial({
@@ -183,11 +207,12 @@ particles.material = new THREE.ShaderMaterial({
 				sizes.height * sizes.pixelRatio,
 			),
 		),
+		uParticlesTexture: new THREE.Uniform(),
 	},
 });
 
 // Points
-particles.points = new THREE.Points(baseGeometry.instance, particles.material);
+particles.points = new THREE.Points(particles.geometry, particles.material);
 scene.add(particles.points);
 
 /**
@@ -219,6 +244,8 @@ const tick = () => {
 
 	// Update GPU Compute
 	GPGPU.computation.compute();
+	particles.material.uniforms.uParticlesTexture.value =
+		GPGPU.computation.getCurrentRenderTarget(GPGPU.particlesVariable).texture;
 
 	// Render normal scene
 	renderer.render(scene, camera);

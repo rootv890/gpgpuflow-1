@@ -4,13 +4,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	if (gpgpubtn) {
 		gpgpubtn.onclick = () => {
-			window.location.href = 'index.html';
+			window.location.href = '/';
 		};
 	}
 
 	if (spherebtn) {
 		spherebtn.onclick = () => {
-			window.location.href = 'sphere.html';
+			window.location.href = './sphere.html';
 		};
 	}
 });

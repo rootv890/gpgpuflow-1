@@ -3,11 +3,11 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>GPGPU Flowfield Animation</title>
+		<title>Wobbly Sphere</title>
 		<link href="./output.css" rel="stylesheet" />
 		<link rel="stylesheet" href="./style.css" />
 	</head>
-	<body>
+	<body class="bg-zinc-900 text-white">
 		<div class="button-container absolute flex gap-6 z-50">
 			<button
 				id="sphere-btn"
@@ -22,8 +22,14 @@
 				GPGPU Ship
 			</button>
 		</div>
-		<canvas class="webgl"></canvas>
-		<script type="module" src="./gpgpuflow.js"></script>
+
+		<h1
+			class="absolute top-4 left-1/2 z-50 w-full min-w-full h-fit mx-auto items-center justify-center"
+		>
+			SPHERE
+		</h1>
+		<canvas class="sphereWebgl"></canvas>
+		<script type="module" src="./sphere.js"></script>
 		<script type="module" src="./script.js"></script>
 	</body>
 </html>
